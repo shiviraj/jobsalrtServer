@@ -55,4 +55,4 @@ jobs:
           git config --global user.name "${{secrets.USERNAME}}"
           git add .
           git commit -m "Backend: $(cd ../backend && git log -n 1 --format=%B)"
-          git push origin master
+          git push origin main
