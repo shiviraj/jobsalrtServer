@@ -1,0 +1,58 @@
+name: CICD
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout backend
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1000
+          repository: ${{secrets.USERNAME}}/${{secrets.BACKEND_REPO}}
+          path: backend
+
+      - name: Testing Backend
+        run: |
+          cd backend
+          npm install
+          npm test
+      - name: Checkout frontend
+        run: |
+          eval "$(ssh-agent -s)" && ssh-add -t 60 - <<< "${{secrets.FRONTEND_DEPLOY}}"
+          git clone git@github.com:${{secrets.USERNAME}}/${{secrets.FRONTEND_REPO}}.git frontend
+      - name: Testing frontend
+        run: |
+          cd frontend
+          npm install
+          npm test
+      - name: Building frontend
+        run: |
+          cd frontend
+          npm run build
+          mv build/* ../backend/public/.
+          cd ..
+          rm -rf frontend
+      - name: Checkout build repo
+        env:
+          GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no'
+        run: |
+          eval "$(ssh-agent -s)" && ssh-add -t 60 - <<< "${{secrets.BUILD_DEPLOY}}"
+          git clone git@github.com:${{secrets.USERNAME}}/${{secrets.BUILD_REPO}}.git build
+      - name: Move new builds to build repo
+        run: |
+          cd build
+          rm -rf *
+          mv ../backend/* .
+      - name: Push build to remote
+        env:
+          GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no'
+        run: |
+          eval "$(ssh-agent -s)" && ssh-add -t 60 - <<< "${{secrets.BUILD_DEPLOY}}"
+          cd build
+          git config --global user.email "58025059+${{secrets.USERNAME}}@users.noreply.github.com"
+          git config --global user.name "${{secrets.USERNAME}}"
+          git add .
+          git commit -m "Backend: $(cd ../backend && git log -n 1 --format=%B)"
+          git push origin master
