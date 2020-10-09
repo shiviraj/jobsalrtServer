@@ -32,8 +32,6 @@ jobs:
           cd frontend
           npm run build
           mv build/* ../backend/public/.
-          cd ..
-          rm -rf frontend
       - name: Checkout build repo
         env:
           GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no'
