@@ -5,6 +5,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout backend
         uses: actions/checkout@v2
@@ -13,36 +14,47 @@ jobs:
           repository: ${{secrets.USERNAME}}/${{secrets.BACKEND_REPO}}
           path: backend
 
+      - name: Start MongoDB
+        uses: supercharge/mongodb-github-action@1.3.0
+
       - name: Testing Backend
+        env:
+          MONGODB_URL: mongodb://127.0.0.1:27017/test-jobsAlrt
         run: |
           cd backend
           npm install
           npm test
+
       - name: Checkout frontend
         run: |
           eval "$(ssh-agent -s)" && ssh-add -t 60 - <<< "${{secrets.FRONTEND_DEPLOY}}"
           git clone git@github.com:${{secrets.USERNAME}}/${{secrets.FRONTEND_REPO}}.git frontend
+
       - name: Testing frontend
         run: |
           cd frontend
           npm install
           npm test
+
       - name: Building frontend
         run: |
           cd frontend
           npm run build
           mv build/* ../backend/public/.
+
       - name: Checkout build repo
         env:
           GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no'
         run: |
           eval "$(ssh-agent -s)" && ssh-add -t 60 - <<< "${{secrets.BUILD_DEPLOY}}"
           git clone git@github.com:${{secrets.USERNAME}}/${{secrets.BUILD_REPO}}.git build
+
       - name: Move new builds to build repo
         run: |
           cd build
           rm -rf *
           mv ../backend/* .
+
       - name: Push build to remote
         env:
           GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no'
